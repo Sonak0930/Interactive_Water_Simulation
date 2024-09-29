@@ -162,7 +162,7 @@ public class SPH : MonoBehaviour
         shader.SetVector("boxSize", boxSize);
         shader.SetFloat("timestep", timestep);
         shader.SetVector("spherePos", collisionSphere.transform.position);
-        shader.SetFloat("sphereRadius", collisionSphere.transform.localScale.x*2);
+        shader.SetFloat("sphereRadius", collisionSphere.transform.localScale.x);
         //100 threads for 100 particles. and 1 thread for 1 particle.
         // the num of particles % 100 should be 0 !!!!
         //run each kernel independently.
