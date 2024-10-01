@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
@@ -20,7 +21,8 @@ public class SPH : MonoBehaviour
     }
 
     [Header("General")]
-    public Transform collisionSphere;
+    public List<GameObject> collisionObjs;
+    public int maxCollisionObjects=10;
     public bool showSpheres = true;
     public Vector3Int numToSpawn = new Vector3Int(10, 10, 10);
 
@@ -58,9 +60,13 @@ public class SPH : MonoBehaviour
     //private variables
     private ComputeBuffer _argsBuffer;
     public ComputeBuffer _particlesBuffer;
+    public ComputeBuffer _spherePosBuffer;
+    public ComputeBuffer _sphereRadiusBuffer;
     private int integrateKernel;
     private int computeForceKernel;
     private int densityPressureKernel;
+    private Vector3[] spherePosList;
+    private float[] sphereRadiusList;
     private void Awake()
     {
         //spawn particles
@@ -83,6 +89,30 @@ public class SPH : MonoBehaviour
         _particlesBuffer.SetData(particles);
 
 
+
+        spherePosList = new Vector3[collisionObjs.Count];
+        sphereRadiusList = new float[collisionObjs.Count];
+       
+        for (int i = 0; i < collisionObjs.Count; i++)
+        {
+            spherePosList[i] = new Vector3(
+                collisionObjs[i].transform.position.x,
+                collisionObjs[i].transform.position.y,
+                collisionObjs[i].transform.position.z);
+
+
+            sphereRadiusList[i] = collisionObjs[i].transform.localScale.x * 0.5f;
+
+        }
+
+
+
+
+        _spherePosBuffer = new ComputeBuffer(maxCollisionObjects, 12);
+        _spherePosBuffer.SetData(spherePosList);
+
+        _sphereRadiusBuffer = new ComputeBuffer(maxCollisionObjects, 4);
+        _sphereRadiusBuffer.SetData(sphereRadiusList);
         //update compute buffers.
         SetupComputeBuffers();
 
@@ -112,6 +142,9 @@ public class SPH : MonoBehaviour
         shader.SetBuffer(integrateKernel, "_particles", _particlesBuffer);
         shader.SetBuffer(computeForceKernel, "_particles", _particlesBuffer);
         shader.SetBuffer(densityPressureKernel, "_particles", _particlesBuffer);
+
+        shader.SetBuffer(computeForceKernel, "_spherePosList", _spherePosBuffer);
+        shader.SetBuffer(computeForceKernel, "_sphereRadiusList", _sphereRadiusBuffer);
 
     }
 
@@ -159,10 +192,29 @@ public class SPH : MonoBehaviour
     // update variables where physical timing is important
     private void FixedUpdate()
     {
+
+        spherePosList = new Vector3[collisionObjs.Count];
+        sphereRadiusList = new float[collisionObjs.Count];
         shader.SetVector("boxSize", boxSize);
         shader.SetFloat("timestep", timestep);
-        shader.SetVector("spherePos", collisionSphere.transform.position);
-        shader.SetFloat("sphereRadius", collisionSphere.transform.localScale.x);
+
+        for (int i = 0; i < collisionObjs.Count; i++)
+        {
+            spherePosList[i] = new Vector3(
+                collisionObjs[i].transform.position.x,
+                collisionObjs[i].transform.position.y,
+                collisionObjs[i].transform.position.z);
+
+            
+            sphereRadiusList[i] = collisionObjs[i].transform.localScale.x*0.5f;
+
+        }
+
+        _spherePosBuffer.SetData(spherePosList);
+        _sphereRadiusBuffer.SetData(sphereRadiusList);
+        shader.SetInt("collisionMax", collisionObjs.Count);
+        shader.SetBuffer(computeForceKernel, "_spherePosList", _spherePosBuffer);
+        shader.SetBuffer(computeForceKernel, "_sphereRadiusList", _sphereRadiusBuffer);
         //100 threads for 100 particles. and 1 thread for 1 particle.
         // the num of particles % 100 should be 0 !!!!
         //run each kernel independently.

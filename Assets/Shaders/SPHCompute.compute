@@ -11,6 +11,8 @@ struct Particle
 };
 
 RWStructuredBuffer<Particle> _particles;
+RWStructuredBuffer<float3> _spherePosList;
+RWStructuredBuffer<float> _sphereRadiusList;
 
 //Variable Declarations
 float particleMass=2.0;
@@ -27,8 +29,18 @@ float pi = 3.1415926535897932384626433832795028841971;
 int particleLength;
 float timestep;
 float3 boxSize;
-float3 spherePos;
-float sphereRadius;
+
+
+float3 pos1;
+float3 pos2;
+float3 pos3;
+
+float rad1;
+float rad2;
+float rad3;
+
+int collisionMax=10;
+
 
 //Smoothing Functions for Compute Forces
 float StdKernel(float distanceSquared)
@@ -137,12 +149,15 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 
     _particles[id.x].currentForce = float3(0, -9.81 * particleMass, 0) - pressure + visc;
 
-    float3 colDir = _particles[id.x].position - spherePos;
-    if (length(colDir) < sphereRadius)
+    for (int j = 0; j < collisionMax; j++)
     {
-        _particles[id.x].currentForce += colDir * 300;
-    }
+        float3 colDir = _particles[id.x].position - _spherePosList[j];
+        if (length(colDir) < _sphereRadiusList[j])
+        {
+            _particles[id.x].currentForce += colDir * 300;
+        }
 
+    }
 }
 
 //this function is called once for every single particle
