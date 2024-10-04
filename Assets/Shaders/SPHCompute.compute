@@ -1,6 +1,8 @@
 #pragma kernel ComputeDensityPressure
 #pragma kernel ComputeForces
 #pragma kernel Integrate
+
+
 struct Particle
 {
     float pressure;
@@ -8,39 +10,61 @@ struct Particle
     float3 currentForce;
     float3 velocity;
     float3 position;
+    float4 predefinedColor;
+
+
 };
+
 
 RWStructuredBuffer<Particle> _particles;
 RWStructuredBuffer<float3> _spherePosList;
 RWStructuredBuffer<float> _sphereRadiusList;
 
 //Variable Declarations
-float particleMass=2.0;
-float viscosity=200;
-float gasConstant=2000;
-float restDensity=300;
-float boundDamping=-0.5;
-float radius=2;
-float radius2=4;
-float radius3=8;
-float radius4=16;
-float radius5=32;
+float particleMass = 2.0;
+float viscosity = 200;
+float gasConstant = 2000;
+float restDensity = 300;
+float boundDamping = -0.5;
+float radius = 2;
+float radius2 = 4;
+float radius3 = 8;
+float radius4 = 16;
+float radius5 = 32;
 float pi = 3.1415926535897932384626433832795028841971;
 int particleLength;
 float timestep;
 float3 boxSize;
 
+float3 endPoint1;
+float3 endPoint2;
+float playerRadius;
 
-float3 pos1;
-float3 pos2;
-float3 pos3;
+int collisionMax = 10;
 
-float rad1;
-float rad2;
-float rad3;
 
-int collisionMax=10;
+float3 getY(float u, float3 p0, float3 p1)
+{
+    
+    if (u == 0)
+    {
+        return p0;
+    }
+    else if (u == 1)
+    {
+        return p1;
+    }
+    else if (0 < u && u < 1)
+    {
+        return p0 + u * (p1 - p0);
 
+    }
+       
+    return float3(999.0, 999.0, 999.0);
+        
+
+
+}
 
 //Smoothing Functions for Compute Forces
 float StdKernel(float distanceSquared)
@@ -149,6 +173,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 
     _particles[id.x].currentForce = float3(0, -9.81 * particleMass, 0) - pressure + visc;
 
+    //collision handling with multiple spheres
     for (int j = 0; j < collisionMax; j++)
     {
         float3 colDir = _particles[id.x].position - _spherePosList[j];
@@ -158,11 +183,56 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
         }
 
     }
+    
+    float3 p0 = endPoint1;
+    float3 p1 = endPoint2;
+    
+    float3 xsphere = _particles[id.x].position;
+    
+
+    
+    //1. determine umin
+    float umin;
+    if (xsphere.y >= p0.y)
+    {
+        umin = 1.0;
+    }
+    else if (xsphere.y < p0.y && xsphere.y > p1.y)
+    {
+        float3 x1 = float3(p0.x, xsphere.y, p0.z);
+        umin = length(x1 - p0) / length(p1 - p0);
+
+    }
+    else if (xsphere.y <= p0.y)
+    {
+        umin = 0;
+    }
+    else
+    {
+        umin = 999.9f;
+    }
+    
+    //2. compute dmin to find a collision condition
+    float dmin = length(xsphere - getY(umin,p0,p1));
+    
+    //3. collision handling
+    if (dmin <= radius + playerRadius)
+    {
+        float3 nearest = getY(umin,p0,p1);
+        float3 colDir = _particles[id.x].position - nearest;
+        
+        _particles[id.x].currentForce += colDir * 300;
+        
+    }
+    //float dmin = length(xsphere - x(umin));
+    
+    
+
 }
 
 //this function is called once for every single particle
-[numthreads(100,1,1)]
-void Integrate(uint3 id: SV_DiSPATCHTHREADID)
+[numthreads(100, 1, 1)]
+void Integrate(uint3 id : SV_DiSPATCHTHREADID)
 {
     //since F=ma, F/m ecomes accelration.
     // velocity = initial velocity + Accelration * timestep

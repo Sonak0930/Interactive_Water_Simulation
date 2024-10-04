@@ -32,6 +32,7 @@ Shader "Instanced/GridTestParticleShader" {
                 float3 currentForce;
                 float3 velocity;
 				float3 position;
+				float4 predefinedColor;
 				
 			};
 
@@ -64,7 +65,8 @@ Shader "Instanced/GridTestParticleShader" {
 					float dens = _particlesBuffer[unity_InstanceID].pressure;
 					float4 col = float4(dens/_DensityRange, 0,0, 1);
 				
-					o.Albedo = col.rgb;
+					o.Albedo = _particlesBuffer[unity_InstanceID].predefinedColor;
+					//o.Albedo = col.rgb;
 					o.Metallic = _Metallic;
 					o.Smoothness = _Glossiness;
 					o.Alpha = col.a;

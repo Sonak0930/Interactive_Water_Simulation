@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Unity.VisualScripting;
 using UnityEngine;
 
 
@@ -17,10 +18,12 @@ public class SPH : MonoBehaviour
         public Vector3 currentForce;
         public Vector3 velocity;
         public Vector3 position;
+        public Vector4 predefinedPosition;
 
     }
 
     [Header("General")]
+    public GameObject playerObject;
     public List<GameObject> collisionObjs;
     public int maxCollisionObjects=10;
     public bool showSpheres = true;
@@ -67,8 +70,10 @@ public class SPH : MonoBehaviour
     private int densityPressureKernel;
     private Vector3[] spherePosList;
     private float[] sphereRadiusList;
+
     private void Awake()
     {
+        
         //spawn particles
         SpawnParticlesInBox();
 
@@ -85,7 +90,7 @@ public class SPH : MonoBehaviour
         _argsBuffer.SetData(args);
 
         //set up particle buffer
-        _particlesBuffer = new ComputeBuffer(totalParticles, 44);
+        _particlesBuffer = new ComputeBuffer(totalParticles, 60);
         _particlesBuffer.SetData(particles);
 
 
@@ -117,7 +122,8 @@ public class SPH : MonoBehaviour
         SetupComputeBuffers();
 
     }
-
+    int vertexCount;
+    ComputeBuffer colorBuffer;
     //this function should be called when the value of the shader variable changes.
     private void SetupComputeBuffers()
     {
@@ -138,6 +144,9 @@ public class SPH : MonoBehaviour
         shader.SetFloat("radius3", particleRadius * particleRadius * particleRadius);
         shader.SetFloat("radius4", particleRadius * particleRadius * particleRadius * particleRadius);
         shader.SetFloat("radius5", particleRadius * particleRadius * particleRadius * particleRadius * particleRadius);
+        
+        
+        shader.SetFloat("playerRadius", playerObject.transform.localScale.x * 0.5f);
 
         shader.SetBuffer(integrateKernel, "_particles", _particlesBuffer);
         shader.SetBuffer(computeForceKernel, "_particles", _particlesBuffer);
@@ -146,6 +155,9 @@ public class SPH : MonoBehaviour
         shader.SetBuffer(computeForceKernel, "_spherePosList", _spherePosBuffer);
         shader.SetBuffer(computeForceKernel, "_sphereRadiusList", _sphereRadiusBuffer);
 
+       
+        
+        
     }
 
 
@@ -189,6 +201,7 @@ public class SPH : MonoBehaviour
     private static readonly int SizeProperty = Shader.PropertyToID("_size");
     private static readonly int ParticlesBufferProperty = Shader.PropertyToID("_particlesBuffer");
 
+    
     // update variables where physical timing is important
     private void FixedUpdate()
     {
@@ -198,6 +211,7 @@ public class SPH : MonoBehaviour
         shader.SetVector("boxSize", boxSize);
         shader.SetFloat("timestep", timestep);
 
+        
         for (int i = 0; i < collisionObjs.Count; i++)
         {
             spherePosList[i] = new Vector3(
@@ -215,6 +229,21 @@ public class SPH : MonoBehaviour
         shader.SetInt("collisionMax", collisionObjs.Count);
         shader.SetBuffer(computeForceKernel, "_spherePosList", _spherePosBuffer);
         shader.SetBuffer(computeForceKernel, "_sphereRadiusList", _sphereRadiusBuffer);
+
+        Vector3 p0 = playerObject.transform.position
+            + new Vector3(0, 1, 0)
+            * playerObject.transform.localScale.y;
+
+        Vector3 p1 = playerObject.transform.position
+            + new Vector3(0, -1, 0)
+            * playerObject.transform.localScale.y;
+
+        shader.SetVector("endPoint1",p0);
+        shader.SetVector("endPoint2",p1);
+        shader.SetFloat("playerRadius", playerObject.transform.localScale.x * 0.5f);
+        
+
+        
         //100 threads for 100 particles. and 1 thread for 1 particle.
         // the num of particles % 100 should be 0 !!!!
         //run each kernel independently.
@@ -223,13 +252,15 @@ public class SPH : MonoBehaviour
         shader.Dispatch(computeForceKernel, totalParticles / 100, 1, 1);
         shader.Dispatch(integrateKernel, totalParticles / 100, 1, 1);      
     }
+
+    
     void Update()
     {
         //update size and particles buffer for every frame
         //render the particles
         material.SetFloat(SizeProperty, particleRenderSize);
         material.SetBuffer(ParticlesBufferProperty,_particlesBuffer);
-        
+
         if(showSpheres)
         {
             Graphics.DrawMeshInstancedIndirect(
