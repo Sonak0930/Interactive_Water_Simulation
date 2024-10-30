@@ -3,6 +3,7 @@
 #pragma kernel Integrate
 
 
+
 struct Particle
 {
     float pressure;
@@ -41,6 +42,20 @@ float3 endPoint2;
 float playerRadius;
 
 int collisionMax = 10;
+
+
+//variables for computing height
+float neighborDist;
+float totalDensity = 0.0f;
+
+
+//functions for spatial hashing.
+int3 GetGridIndex(float3 position, float cellSize)
+{
+    return floor(position / cellSize);
+
+}
+
 
 
 float3 getY(float u, float3 p0, float3 p1)
@@ -101,7 +116,7 @@ float3 SpikyKernelGradient(float distance, float3 direction)
 
 //viscosity : Bind the particles 
 
-[numthreads(100, 1, 1)]
+[numthreads(128, 1, 1)]
 void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
 {
     float3 origin = _particles[id.x].position;
@@ -122,6 +137,9 @@ void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
             //higher density -> higher pressure -> moving particles back to each other.
             sum += StdKernel(distanceSquared * 0.004);
         }
+        
+        
+        totalDensity += _particles[id.x].density;
 
     }
     
@@ -132,10 +150,12 @@ void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
     //this code is newly added
     if (_particles[id.x].pressure <= 0)
         _particles[id.x].pressure = 0;
+    
+    totalDensity = totalDensity / particleLength;
 }
 
 
-[numthreads(100, 1, 1)]
+[numthreads(128, 1, 1)]
 void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 {
     float3 origin = _particles[id.x].position;
@@ -231,7 +251,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 }
 
 //this function is called once for every single particle
-[numthreads(100, 1, 1)]
+[numthreads(128, 1, 1)]
 void Integrate(uint3 id : SV_DiSPATCHTHREADID)
 {
     //since F=ma, F/m ecomes accelration.
@@ -295,3 +315,57 @@ void Integrate(uint3 id : SV_DiSPATCHTHREADID)
     _particles[id.x].velocity = vel;
     
 }
+
+void FindNeighbors(uint3 id : SV_DISPATCHTHREADID)
+{
+    /*
+    //Get the current particle's position
+    float3 position = _particles[id.x].position;
+    
+    //Get the grid index of the current particle
+    int3 gridIndex = GetGridIndex(position, cellSize);
+    
+    //Check the neighboring grid cells for potential neighbors
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int z = -1; z <= 1; z++)
+            {
+                //Get the neighboring grid cell index
+                int3 neighborCell = gridIndex + int3(x, y, z);
+                
+                //Look through the particles in this grid cell
+                for (int i = 0; i < particlesInCell[neighborCell]; i++)
+                {
+                    
+                }
+
+            }
+
+        }
+
+    }*/
+
+}
+
+/*
+[numthreads(100, 1, 1)]
+void ComputeHeight(uint3 id : SV_DiSPATCHTHREADID)
+{
+    //1. find the density
+    _particles[id.x].density;
+    
+    //2. find the fluid density
+    //totalDensity;
+    
+    //3. find the position x
+    _particles[id.x].position.x;
+    
+    //4. determine the neighboring particle
+    //neighborDist
+    float distance = length(_particles[id.x].position-_particles[id.x + neighborDist])   
+    
+    
+}
+*/

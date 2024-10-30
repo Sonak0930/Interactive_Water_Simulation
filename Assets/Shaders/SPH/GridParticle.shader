@@ -71,8 +71,6 @@ Shader "Instanced/GridTestParticleShader" {
 					o.Smoothness = _Glossiness;
 					o.Alpha = col.a;
 				#endif
-
-				
 			}
 			ENDCG
 		}

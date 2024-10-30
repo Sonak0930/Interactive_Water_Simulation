@@ -32,8 +32,9 @@ public class SPH : MonoBehaviour
     //get total num of particles = cubic of the vector3
     public int totalParticles {
         get 
-        { 
-            return numToSpawn.x*numToSpawn.y*numToSpawn.z; 
+        {
+            return 1024;
+            //return numToSpawn.x*numToSpawn.y*numToSpawn.z; 
         } 
     }
 
@@ -60,14 +61,19 @@ public class SPH : MonoBehaviour
     public float restingDensity = 1f;
     public float timestep = 0.007f;
 
+    [Header("Kernel variables")]
+    public float neighborDistance = 1.0f;
+
     //private variables
     private ComputeBuffer _argsBuffer;
     public ComputeBuffer _particlesBuffer;
     public ComputeBuffer _spherePosBuffer;
     public ComputeBuffer _sphereRadiusBuffer;
+
     private int integrateKernel;
     private int computeForceKernel;
     private int densityPressureKernel;
+
     private Vector3[] spherePosList;
     private float[] sphereRadiusList;
 
@@ -94,7 +100,7 @@ public class SPH : MonoBehaviour
         _particlesBuffer.SetData(particles);
 
 
-
+        
         spherePosList = new Vector3[collisionObjs.Count];
         sphereRadiusList = new float[collisionObjs.Count];
        
@@ -109,8 +115,7 @@ public class SPH : MonoBehaviour
             sphereRadiusList[i] = collisionObjs[i].transform.localScale.x * 0.5f;
 
         }
-
-
+        
 
 
         _spherePosBuffer = new ComputeBuffer(maxCollisionObjects, 12);
@@ -118,6 +123,9 @@ public class SPH : MonoBehaviour
 
         _sphereRadiusBuffer = new ComputeBuffer(maxCollisionObjects, 4);
         _sphereRadiusBuffer.SetData(sphereRadiusList);
+
+
+    
         //update compute buffers.
         SetupComputeBuffers();
 
@@ -144,9 +152,10 @@ public class SPH : MonoBehaviour
         shader.SetFloat("radius3", particleRadius * particleRadius * particleRadius);
         shader.SetFloat("radius4", particleRadius * particleRadius * particleRadius * particleRadius);
         shader.SetFloat("radius5", particleRadius * particleRadius * particleRadius * particleRadius * particleRadius);
-        
-        
+       
         shader.SetFloat("playerRadius", playerObject.transform.localScale.x * 0.5f);
+
+        shader.SetFloat("neighborDist", neighborDistance);
 
         shader.SetBuffer(integrateKernel, "_particles", _particlesBuffer);
         shader.SetBuffer(computeForceKernel, "_particles", _particlesBuffer);
@@ -155,11 +164,10 @@ public class SPH : MonoBehaviour
         shader.SetBuffer(computeForceKernel, "_spherePosList", _spherePosBuffer);
         shader.SetBuffer(computeForceKernel, "_sphereRadiusList", _sphereRadiusBuffer);
 
-       
-        
-        
-    }
+     }
 
+   
+    
 
     private void SpawnParticlesInBox()
     {
@@ -241,19 +249,22 @@ public class SPH : MonoBehaviour
         shader.SetVector("endPoint1",p0);
         shader.SetVector("endPoint2",p1);
         shader.SetFloat("playerRadius", playerObject.transform.localScale.x * 0.5f);
-        
+        shader.SetFloat("neighborDist", neighborDistance);
 
         
         //100 threads for 100 particles. and 1 thread for 1 particle.
         // the num of particles % 100 should be 0 !!!!
         //run each kernel independently.
 
-        shader.Dispatch(densityPressureKernel, totalParticles / 100, 1, 1);
-        shader.Dispatch(computeForceKernel, totalParticles / 100, 1, 1);
-        shader.Dispatch(integrateKernel, totalParticles / 100, 1, 1);      
+        shader.Dispatch(densityPressureKernel, totalParticles /16, 1, 1);
+        shader.Dispatch(computeForceKernel, totalParticles /16, 1, 1);
+        shader.Dispatch(integrateKernel, totalParticles / 16, 1, 1);
+
+
+       
     }
 
-    
+
     void Update()
     {
         //update size and particles buffer for every frame

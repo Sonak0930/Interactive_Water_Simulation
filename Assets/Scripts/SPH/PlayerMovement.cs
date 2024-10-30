@@ -52,7 +52,7 @@ public class PlayerMovement : MonoBehaviour
         mainCam.transform.RotateAround(gameObject.transform.position, Vector3.up, rotateHorizontal * mouseSensitivity);
         mainCam.transform.RotateAround(Vector3.zero, -mainCam.transform.right, rotateVertical * mouseSensitivity);
 
-        mainCam.transform.position = gameObject.transform.position; 
+        mainCam.transform.position = gameObject.transform.position ; 
             
     }
 }

@@ -29,14 +29,41 @@ float3 waterColor;
 float3 _Light;
 float3 _AmbientLight;
 float3 _CameraPos;
+float3 _CameraDirection;
 
 struct Ray {
     float3 origin;
     float3 direction;
 };
 
-float SphereDistance(float3 eye, float3 centre, float radius) {
-    return distance(eye, centre) - radius;
+float Babylonian(float num)
+{
+    float value1 = num;
+    if (value1 < 0)
+    {
+        return -1;
+    }
+
+    float oValue = 1;
+    float value2 = value1;
+    float e = 0.0001f;
+
+    while (abs(value2 - oValue) > e)
+    {
+        value2 = (value2 + oValue) / 2;
+        oValue = value1 / value2;
+    }
+
+    return oValue;
+}
+float SphereDistance(float3 eye, float3 center, float radius) {
+    float deltaX = (eye.x - center.x) * (eye.x - center.x);
+    float deltaY = (eye.y - center.y) * (eye.y - center.y);
+    float deltaZ = (eye.z - center.z) * (eye.z - center.z);
+    
+    float dist = Babylonian(deltaX+deltaY+deltaZ);
+    //float dist = length(eye - center);
+    return dist - radius;
 }
 
 Ray CreateRay(float3 origin, float3 direction) {
@@ -76,24 +103,35 @@ float4 Combine(float dstA, float dstB, float3 colourA, float3 colourB) {
 float GetShapeDistance(Particle particle, float3 eye) {
    
     return SphereDistance(eye, particle.position, particleRadius);
-    return maxDst;
+              
 }
 
 
 float4 SceneInfo(float3 eye) {
     float globalDst = maxDst;
     float3 globalColour = waterColor;
-    
-    for (int i = 0; i < numParticles; i ++) {
-        Particle particle = particles[i];
 
-        float localDst = GetShapeDistance(particle,eye);
-        float3 localColour = waterColor;
+    for (int i = 0; i < numParticles; i++)
+    {
+        
+        float3 p =(particles[i].position);
+        float3 view = normalize(_CameraDirection);
+        
+        float3 directionToParticle = normalize(p - _CameraPos);
+        
+        if (dot(view, directionToParticle)>0.7)
+        {
+        
+            Particle particle = particles[i];
 
-
-        float4 globalCombined = Combine(globalDst, localDst, globalColour, localColour);
-        globalColour = globalCombined.xyz;
-        globalDst = globalCombined.w;        
+            float localDst = GetShapeDistance(particle, eye);
+            float3 localColour = waterColor;
+            float4 globalCombined = Combine(globalDst, localDst, globalColour, localColour);
+            globalColour = globalCombined.xyz;
+            globalDst = globalCombined.w;
+        }
+        
+            
     }
 
     return float4(globalColour, globalDst);
@@ -164,9 +202,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     int marchSteps = 0;
 
     float depth = LinearEyeDepth(_DepthTexture[id.xy]);
-
     
-
     while (rayDst < maxDst) {
         marchSteps ++;
         float4 sceneInfo = SceneInfo(ray.origin);
