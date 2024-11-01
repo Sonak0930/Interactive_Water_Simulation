@@ -18,7 +18,7 @@ struct Particle
     float3 currentForce;
     float3 velocity;
     float3 position;
-    float4 predefinedColor;
+   
 };
 
 StructuredBuffer<Particle> particles;

@@ -27,17 +27,6 @@ public class Sandbox : MonoBehaviour
     }
     private void Start()
     {
-        DateTime before = DateTime.Now;
-        Babylonian(1234);
-        DateTime after = DateTime.Now;
-        TimeSpan duration = after.Subtract(before);
-        Debug.Log("babylonian: " + duration);
-
-
-        DateTime before2 = DateTime.Now;
-        Mathf.Sqrt(1234);
-        DateTime after2 = DateTime.Now;
-        TimeSpan duration2 = after2.Subtract(before2);
-        Debug.Log("Mathf.sqrt: " + duration2);
+        
     }
 }

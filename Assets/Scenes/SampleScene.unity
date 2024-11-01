@@ -227,50 +227,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &246182310
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 246182312}
-  - component: {fileID: 246182311}
-  m_Layer: 0
-  m_Name: Sandbox
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &246182311
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 246182310}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd560f2e3b883e543844c499a1629d99, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &246182312
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 246182310}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.7134293, y: -7.1478233, z: 0.73404586}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &553318307
 GameObject:
   m_ObjectHideFlags: 0
@@ -323,7 +279,7 @@ MonoBehaviour:
   - {fileID: 125762769}
   maxCollisionObjects: 5
   showSpheres: 1
-  numToSpawn: {x: 10, y: 10, z: 10}
+  numToSpawn: {x: 16, y: 16, z: 16}
   boxSize: {x: 4, y: 10, z: 3}
   spawnCenter: {x: 0, y: 0, z: 0}
   particleRadius: 0.1
@@ -334,11 +290,11 @@ MonoBehaviour:
   shader: {fileID: 7200000, guid: e1859c0f93f9e2b459d57375319220f9, type: 3}
   particles: []
   boundDamping: -0.3
-  viscosity: -0.003
-  particleMass: 1
+  viscosity: -0.03
+  particleMass: 0.1
   gasConstant: 2
   restingDensity: 1
-  timestep: 0.001
+  timestep: 0.007
   neighborDistance: 1
 --- !u!1 &558284830
 GameObject:
@@ -688,7 +644,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7182cac652d7f6641b7c75b05bb7d010, type: 3}
   m_Name: 
@@ -1146,4 +1102,3 @@ SceneRoots:
   - {fileID: 125762773}
   - {fileID: 963194228}
   - {fileID: 558284834}
-  - {fileID: 246182312}
