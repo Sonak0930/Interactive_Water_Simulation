@@ -24,16 +24,16 @@ RWStructuredBuffer<uint> _particleCellIndices;
 RWStructuredBuffer<uint> _cellOffsets;
 
 //Variable Declarations
-float particleMass = 2.0;
-float viscosity = 200;
-float gasConstant = 2000;
-float restDensity = 300;
-float boundDamping = -0.5;
-float radius = 2;
-float radius2 = 4;
-float radius3 = 8;
-float radius4 = 16;
-float radius5 = 32;
+float particleMass;
+float viscosity;
+float gasConstant;
+float restDensity;
+float boundDamping;
+float radius;
+float radius2;
+float radius3;
+float radius4;
+float radius5;
 float pi = 3.1415926535897932384626433832795028841971;
 uint particleLength;
 float timestep;
@@ -45,9 +45,6 @@ float playerRadius;
 
 int collisionMax = 10;
 
-//variables for computing height
-float neighborDist;
-float totalDensity = 0.0f;
 
 //variables for bitonic sort
 int block;
@@ -192,15 +189,15 @@ void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
     _particles[particleIndex].pressure = gasConstant * (_particles[particleIndex].density - restDensity);
 
     
+    
     //this code is newly added
     if (_particles[particleIndex].pressure <= 0)
         _particles[particleIndex].pressure = 0;
-    
-    totalDensity = totalDensity / particleLength;
+  
 }
 
 
-[numthreads(256, 1, 1)]
+[numthreads(256,1,1)]
 void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 {
     uint particleIndex = _particleIndices[id.x];
@@ -240,10 +237,16 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
                     }
         
                     float dist = distance(particleB.position, origin);
-                    if (dist < radius * 2)
+                    
+                    //handles repulsive pressure force between close particles.
+                    if (dist < radius *2)
                     {
+                        //calculates the direction vector from the 
+                        //neighboring particle: particleB
+                        //the current particle will be pushed away in this direction.
                         float3 pressureGradientDirection = normalize(_particles[particleIndex].position - particleB.position);
             
+                        //Spiky kernel determines the magnitude of this force
                         float3 _pressureContribution = mass2 * SpikyKernelGradient(dist, pressureGradientDirection);
                         _pressureContribution *= (_particles[particleIndex].pressure / density2 + particleB.pressure / (particleB.density * particleB.density));
 
@@ -265,13 +268,14 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 
     _particles[particleIndex].currentForce = float3(0, -9.81 * particleMass, 0) - pressure + visc;
 
+    
     //collision handling with multiple spheres
     for (int a = 0; a < collisionMax; a++)
     {
-        float3 colDir = _particles[particleIndex].position - _spherePosList[a];
+        float3 colDir = _particles[id.x].position - _spherePosList[a];
         if (length(colDir) < _sphereRadiusList[a])
         {
-            _particles[particleIndex].currentForce += colDir * 300;
+            _particles[id.x].currentForce += colDir * 30;
         }
 
     }
@@ -279,7 +283,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
     float3 p0 = endPoint1;
     float3 p1 = endPoint2;
     
-    float3 xsphere = _particles[particleIndex].position;
+    float3 xsphere = _particles[id.x].position;
     
     
     
@@ -313,7 +317,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
         float3 nearest = getY(umin,p0,p1);
         float3 colDir = _particles[particleIndex].position - nearest;
         
-        _particles[particleIndex].currentForce += colDir * 300;
+        _particles[particleIndex].currentForce += colDir * 30;
         
     }
     //float dmin = length(xsphere - x(umin));
@@ -323,7 +327,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 }
 
 //this function is called once for every single particle
-[numthreads(256, 1, 1)]
+[numthreads(256,1,1)]
 void Integrate(uint3 id : SV_DiSPATCHTHREADID)
 {
     //since F=ma, F/m ecomes accelration.
@@ -388,7 +392,7 @@ void Integrate(uint3 id : SV_DiSPATCHTHREADID)
     
 }
 
-[numthreads(256, 1, 1)]
+[numthreads(256,1,1)]
 void HashParticles(uint3 id : SV_DISPATCHTHREADID)
 {
     _cellOffsets[id.x] = 99999999;
@@ -397,7 +401,7 @@ void HashParticles(uint3 id : SV_DISPATCHTHREADID)
     _particleCellIndices[particleIndex] = HashCell(GetCell(_particles[particleIndex].position));
 }
 
-[numthreads(256, 1, 1)]
+[numthreads(256,1,1)]
 void BitonicSort(int3 id : SV_DISPATCHTHREADID)
 {
     uint i = id.x + id.y * 256 * 1024;
@@ -421,7 +425,7 @@ void BitonicSort(int3 id : SV_DISPATCHTHREADID)
 
 }
 
-[numthreads(256, 1, 1)]
+[numthreads(256,1,1)]
 void CalculateCellOffsets(uint3 id : SV_DISPATCHTHREADID)
 {
     uint particleIndex = _particleIndices[id.x];
