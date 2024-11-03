@@ -25,6 +25,7 @@ RWStructuredBuffer<uint> _cellOffsets;
 
 //Variable Declarations
 float particleMass;
+float mass2;
 float viscosity;
 float gasConstant;
 float restDensity;
@@ -144,11 +145,11 @@ void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
     float3 origin = _particles[particleIndex].position;
     float sum = 0;
     
-    for (int i = -2; i <= 2; ++i)
+    for (int i = -1; i <= 1; ++i)
     {
-        for (int j = -2; j <= 2; ++j)
+        for (int j = -1; j <= 1; ++j)
         {
-            for (int k = -2; k <= 2; ++k)
+            for (int k = -1; k <= 1; ++k)
             {
                 int3 neighbourIndex = cellIndex + int3(i, j, k);
                 uint hashNeighbourIndex = HashCell(neighbourIndex);
@@ -190,9 +191,7 @@ void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
 
     
     
-    //this code is newly added
-    if (_particles[particleIndex].pressure <= 0)
-        _particles[particleIndex].pressure = 0;
+   
   
 }
 
@@ -205,15 +204,14 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
     
     float3 origin = _particles[particleIndex].position;
     float density2 = _particles[particleIndex].density * _particles[particleIndex].density;
-    float mass2 = particleMass * particleMass;
     float3 pressure = float3(0, 0, 0); // to be calculated
     float3 visc = float3(0, 0, 0); // to be calculated
     
-    for (int i = -2; i <= 2; ++i)
+    for (int i = -1; i <= 1; ++i)
     {
-        for (int j = -2; j <= 2; ++j)
+        for (int j = -1; j <= 1; ++j)
         {
-            for (int k = -2; k <= 2; ++k)
+            for (int k = -1; k <= 1; ++k)
             {
                 int3 neighbourIndex = cellIndex + int3(i, j, k);
                 uint hashNeighbourIndex = HashCell(neighbourIndex);
@@ -221,6 +219,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
                 
                 while (neighbourIterator != 99999999 && neighbourIterator < particleLength)
                 {
+                    
                     uint particleIndexB = _particleIndices[neighbourIterator];
                     
                     if (_particleCellIndices[particleIndexB] != hashNeighbourIndex)
@@ -265,17 +264,17 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
         }
 
     }
-
-    _particles[particleIndex].currentForce = float3(0, -9.81 * particleMass, 0) - pressure + visc;
+    
+    _particles[particleIndex].currentForce = float3(0, -9.81 * particleMass, 0) - pressure*0.1+visc;
 
     
     //collision handling with multiple spheres
     for (int a = 0; a < collisionMax; a++)
     {
-        float3 colDir = _particles[id.x].position - _spherePosList[a];
+        float3 colDir = _particles[particleIndex].position - _spherePosList[a];
         if (length(colDir) < _sphereRadiusList[a])
         {
-            _particles[id.x].currentForce += colDir * 30;
+            _particles[particleIndex].currentForce += colDir * 300;
         }
 
     }

@@ -297,6 +297,7 @@ public class SPH : MonoBehaviour
         shader.SetFloat("restDensity", restingDensity);
         
         shader.SetFloat("particleMass", particleMass);
+        shader.SetFloat("mass2",particleMass * particleMass);
         shader.SetFloat("viscosity", viscosity);
         shader.SetFloat("boundDamping", boundDamping);
 
