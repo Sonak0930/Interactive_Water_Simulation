@@ -101,6 +101,11 @@ float3 getY(float u, float3 p0, float3 p1)
 
 }
 
+
+
+
+
+
 //Smoothing Functions for Compute Forces
 float StdKernel(float distanceSquared)
 {
@@ -265,8 +270,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 
     }
     
-    _particles[particleIndex].currentForce = float3(0, -9.81 * particleMass, 0) - pressure*0.1+visc;
-
+    _particles[particleIndex].currentForce = (float3(0, -9.81 * particleMass, 0) - pressure +visc);
     
     //collision handling with multiple spheres
     for (int a = 0; a < collisionMax; a++)
@@ -316,7 +320,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
         float3 nearest = getY(umin,p0,p1);
         float3 colDir = _particles[particleIndex].position - nearest;
         
-        _particles[particleIndex].currentForce += colDir * 30;
+        _particles[particleIndex].currentForce += colDir * 300;
         
     }
     //float dmin = length(xsphere - x(umin));

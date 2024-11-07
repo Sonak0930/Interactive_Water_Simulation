@@ -1,0 +1,27 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ComputeForce
+struct Particle
+{
+    float pressure;
+    float density;
+    float3 currentForce;
+    float3 velocity;
+    float3 position;
+};
+
+int _totalParticles;
+float _particleRadius;
+float _smoothRadius;
+float _smoothRadius2;
+float _smoothRadius8;
+float3 _samplePoint;
+RWStructuredBuffer<Particle> _particles;
+
+
+
+[numthreads(8,1,1)]
+void ComputeForce (uint3 id : SV_DispatchThreadID)
+{
+    
+
+}
