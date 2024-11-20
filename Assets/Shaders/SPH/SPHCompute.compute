@@ -4,7 +4,11 @@
 #pragma kernel HashParticles
 #pragma kernel BitonicSort
 #pragma kernel CalculateCellOffsets
+// Includes
+#include "./FluidMaths3D.hlsl"
+#include "./SpatialHash3D.hlsl"
 
+#define Sebastian
 
 struct Particle
 {
@@ -16,12 +20,22 @@ struct Particle
 };
 
 
+
+
+
 RWStructuredBuffer<Particle> _particles;
 RWStructuredBuffer<float3> _spherePosList;
 RWStructuredBuffer<float> _sphereRadiusList;
 RWStructuredBuffer<uint> _particleIndices;
 RWStructuredBuffer<uint> _particleCellIndices;
 RWStructuredBuffer<uint> _cellOffsets;
+
+#ifdef Sebastian
+RWStructuredBuffer<float2> _densities;
+RWStructuredBuffer<float3> _velocities;
+RWStructuredBuffer<uint3> _spatialIndices;
+RWStructuredBuffer<uint> _spatialOffsets;
+#endif
 
 //Variable Declarations
 float particleMass;
@@ -46,10 +60,99 @@ float playerRadius;
 
 int collisionMax = 10;
 
+#ifdef Sebastian
+float pressureMultiplier;
+float targetDensity;
+float nearPressureMultiplier;
+#endif
 
 //variables for bitonic sort
 int block;
 int dim;
+
+#ifdef Sebastian
+void UpdateSpatialHash(uint3 id)
+{
+    if (id.x >= particleLength)
+        return;
+
+	// Reset offsets
+    _spatialOffsets[id.x] = particleLength;
+	// Update index buffer
+    uint index = id.x;
+    int3 cell = GetCell3D(_particles[index].position, radius);
+    uint hash = HashCell3D(cell,particleLength,true);
+    uint key = KeyFromHash(hash, particleLength);
+    _spatialIndices[id.x] = uint3(index, hash, key);
+}
+void CalculatePressureForce(uint3 id)
+{
+    if (id.x >= particleLength)
+        return;
+
+	// Calculate pressure
+    float density = _densities[id.x][0];
+    float densityNear = _densities[id.x][1];
+    float pressure = (density - targetDensity) * pressureMultiplier;
+    float nearPressure = densityNear * nearPressureMultiplier;
+    float3 pressureForce = 0;
+	
+    float3 pos = _particles[id.x].position;
+    int3 originCell = GetCell3D(pos, radius);
+    float sqrRadius = radius2;
+
+	// Neighbour search
+    for (int i = 0; i < 27; i++)
+    {
+        uint hash = HashCell3D(originCell + offsets3D[i],particleLength,true);
+        uint key = KeyFromHash(hash, particleLength);
+        uint currIndex = _spatialOffsets[key];
+
+        while (currIndex < particleLength)
+        {
+            uint3 indexData = _spatialIndices[currIndex];
+            currIndex++;
+			// Exit if no longer looking at correct bin
+            if (indexData[2] != key)
+                break;
+			// Skip if hash does not match
+            if (indexData[1] != hash)
+                continue;
+
+            uint neighbourIndex = indexData[0];
+			// Skip if looking at self
+            if (neighbourIndex == id.x)
+                continue;
+
+            float3 neighbourPos = _particles[neighbourIndex].position;
+            float3 offsetToNeighbour = neighbourPos - pos;
+            float sqrDstToNeighbour = dot(offsetToNeighbour, offsetToNeighbour);
+
+			// Skip if not within radius
+            if (sqrDstToNeighbour > sqrRadius)
+                continue;
+
+			// Calculate pressure force
+            float densityNeighbour = _densities[neighbourIndex][0];
+            float nearDensityNeighbour = _densities[neighbourIndex][1];
+            float neighbourPressure = (densityNeighbour - targetDensity) * pressureMultiplier;
+            float neighbourPressureNear = nearDensityNeighbour * nearPressureMultiplier;
+
+            float sharedPressure = (pressure + neighbourPressure) / 2;
+            float sharedNearPressure = (nearPressure + neighbourPressureNear) / 2;
+
+            float dst = sqrt(sqrDstToNeighbour);
+            float3 dir = dst > 0 ? offsetToNeighbour / dst : float3(0, 1, 0);
+
+            pressureForce += dir * DensityDerivative(dst, radius) * sharedPressure / densityNeighbour;
+            pressureForce += dir * NearDensityDerivative(dst, radius) * sharedNearPressure / nearDensityNeighbour;
+        }
+    }
+
+    float3 acceleration = pressureForce / density;
+    _velocities[id.x] += acceleration * timestep;
+}
+#endif
 
 inline uint HashCell(in int3 cellIndex)
 {
@@ -144,12 +247,30 @@ float3 SpikyKernelGradient(float distance, float3 direction)
 [numthreads(256, 1, 1)]
 void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
 {
+    if (id.x >= particleLength)
+        return;
+ 
     uint particleIndex = _particleIndices[id.x];
     
+#ifdef Default
     int3 cellIndex = GetCell(_particles[particleIndex].position);
-    float3 origin = _particles[particleIndex].position;
-    float sum = 0;
+#endif
     
+#ifdef Sebastian
+    int3 cellIndex = GetCell3D(_particles[particleIndex].position, radius);
+#endif 
+    
+    
+    float3 origin = _particles[particleIndex].position;
+    
+#ifdef Default
+    float sum = 0;
+#endif
+    
+#ifdef Sebastian
+    float density = 0;
+    float nearDensity = 0;
+#endif
     for (int i = -1; i <= 1; ++i)
     {
         for (int j = -1; j <= 1; ++j)
@@ -176,40 +297,60 @@ void ComputeDensityPressure(uint3 id : SV_DISPATCHTHREADID)
                     
                     if (radius2 * 0.004 > distanceSquared * 0.004)
                     {
+#ifdef Default
                         sum += StdKernel(distanceSquared * 0.004);
-
+#endif
+                        
+#ifdef Sebastian
+                        density = SpikyKernelPow2(distanceSquared * 0.004, radius);
+                        nearDensity = SpikyKernelPow3(distanceSquared * 0.004, radius);
+#endif
                     }
                     
                     neighbourIterator++;
-                    
-
                 }
-
             }
-
         }
     }
-       
     
+#ifdef Default
     _particles[particleIndex].density = sum * particleMass + 0.000001f;
+#endif
+    
+#ifdef Sebastian
+    _densities[particleIndex][0] = density;
+    _densities[particleIndex][1] = nearDensity;
+#endif
+    
+#ifdef Default
     _particles[particleIndex].pressure = gasConstant * (_particles[particleIndex].density - restDensity);
-
+#endif    
     
     
    
-  
+    
 }
 
 
-[numthreads(256,1,1)]
+[numthreads(256, 1, 1)]
 void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
 {
+    
     uint particleIndex = _particleIndices[id.x];
     int3 cellIndex = GetCell(_particles[particleIndex].position);
     
     float3 origin = _particles[particleIndex].position;
+    
+#ifdef Default
     float density2 = _particles[particleIndex].density * _particles[particleIndex].density;
     float3 pressure = float3(0, 0, 0); // to be calculated
+#endif
+#ifdef Sebastian
+    float density = _densities[particleIndex][0];
+    float densityNear = _densities[particleIndex][1];
+    float pressure = (density - targetDensity) * pressureMultiplier;
+    float nearPressure = densityNear * nearPressureMultiplier;
+#endif
     float3 visc = float3(0, 0, 0); // to be calculated
     
     for (int i = -1; i <= 1; ++i)
@@ -243,22 +384,47 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
                     float dist = distance(particleB.position, origin);
                     
                     //handles repulsive pressure force between close particles.
-                    if (dist < radius *2)
+                    if (dist < radius * 2)
                     {
                         //calculates the direction vector from the 
                         //neighboring particle: particleB
                         //the current particle will be pushed away in this direction.
                         float3 pressureGradientDirection = normalize(_particles[particleIndex].position - particleB.position);
             
+#ifdef Default
                         //Spiky kernel determines the magnitude of this force
                         float3 _pressureContribution = mass2 * SpikyKernelGradient(dist, pressureGradientDirection);
                         _pressureContribution *= (_particles[particleIndex].pressure / density2 + particleB.pressure / (particleB.density * particleB.density));
-
                         float3 _viscosityContribution = viscosity * mass2 * (particleB.velocity - _particles[particleIndex].velocity) / particleB.density;
                         _viscosityContribution *= SpikyKernelSecondDerivative(dist);
             
                         pressure += _pressureContribution;
                         visc += _viscosityContribution;
+#endif
+                        
+#ifdef Sebastian
+                        
+                        //calculate dst first
+                        float3 neighbourPos = particleB.position;
+                        float3 offsetToNeighbour = neighbourPos - origin;
+                        float sqrDstToNeighbour = dot(offsetToNeighbour, offsetToNeighbour);
+                        float dst = sqrt(sqrDstToNeighbour);
+                        float3 dir = dst > 0 ? offsetToNeighbour / dst : float3(0, 1, 0);
+                        float3 _pressureContribution = SpikyKernelGradient(dst, pressureGradientDirection);
+                        
+                        float densityNeighbour = _densities[neighbourIterator][0];
+                        float nearDensityNeighbour = _densities[neighbourIterator][1];
+                        float neighbourPressure = (densityNeighbour - targetDensity) * pressureMultiplier;
+                        float neighbourPressureNear = nearDensityNeighbour * nearPressureMultiplier;
+
+                        float sharedPressure = (pressure + neighbourPressure) / 2;
+                        float sharedNearPressure = (nearPressure + neighbourPressureNear) / 2;
+
+                        
+                        pressure += dir * DerivativeSpikyPow2(dst, radius) * sharedPressure / densityNeighbour;
+                        pressure += dir * DerivativeSpikyPow3(dst, radius) * sharedNearPressure / nearDensityNeighbour;
+#endif
+                        
 
                     }
                     
@@ -269,7 +435,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
         }
 
     }
-    
+    /*
     _particles[particleIndex].currentForce = (float3(0, -9.81 * particleMass, 0) - pressure +visc);
     
     //collision handling with multiple spheres
@@ -324,13 +490,13 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
         
     }
     //float dmin = length(xsphere - x(umin));
-    
-    
+  */  
+  
 
 }
 
 //this function is called once for every single particle
-[numthreads(256,1,1)]
+[numthreads(256, 1, 1)]
 void Integrate(uint3 id : SV_DiSPATCHTHREADID)
 {
     //since F=ma, F/m ecomes accelration.
@@ -395,7 +561,7 @@ void Integrate(uint3 id : SV_DiSPATCHTHREADID)
     
 }
 
-[numthreads(256,1,1)]
+[numthreads(256, 1, 1)]
 void HashParticles(uint3 id : SV_DISPATCHTHREADID)
 {
     _cellOffsets[id.x] = 99999999;
@@ -404,7 +570,7 @@ void HashParticles(uint3 id : SV_DISPATCHTHREADID)
     _particleCellIndices[particleIndex] = HashCell(GetCell(_particles[particleIndex].position));
 }
 
-[numthreads(256,1,1)]
+[numthreads(256, 1, 1)]
 void BitonicSort(int3 id : SV_DISPATCHTHREADID)
 {
     uint i = id.x + id.y * 256 * 1024;
@@ -428,7 +594,7 @@ void BitonicSort(int3 id : SV_DISPATCHTHREADID)
 
 }
 
-[numthreads(256,1,1)]
+[numthreads(256, 1, 1)]
 void CalculateCellOffsets(uint3 id : SV_DISPATCHTHREADID)
 {
     uint particleIndex = _particleIndices[id.x];
@@ -436,3 +602,5 @@ void CalculateCellOffsets(uint3 id : SV_DISPATCHTHREADID)
     
     InterlockedMin(_cellOffsets[cellIndex], id.x);
 }
+
+
