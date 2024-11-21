@@ -253,7 +253,7 @@ Transform:
   m_GameObject: {fileID: 553318307}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 4.31, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -283,8 +283,7 @@ MonoBehaviour:
   x: 5
   y: 5
   z: 5
-  spawnCenter: {x: 0, y: 0, z: 0}
-  particleRadius: 0.01
+  particleRadius: 0.2
   spawnJitter: 0.2
   particleMesh: {fileID: 4711208715938537054, guid: 7952c22a886b37a4f8f826bd811752bb, type: 3}
   particleRenderSize: 8
@@ -292,13 +291,13 @@ MonoBehaviour:
   shader: {fileID: 7200000, guid: e1859c0f93f9e2b459d57375319220f9, type: 3}
   particles: []
   boundDamping: -0.3
-  viscosity: -0.001
+  viscosity: 0.001
   particleMass: 1
-  gasConstant: 2
-  restingDensity: 1
+  gasConstant: -0.1
+  restingDensity: 1000
   timestep: 0.006
   neighborDistance: 1
-  boxSize: {x: 5, y: 5, z: 5}
+  boxSize: {x: 20, y: 15, z: 20}
 --- !u!1 &558284830
 GameObject:
   m_ObjectHideFlags: 0

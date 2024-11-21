@@ -46,6 +46,7 @@ float playerRadius;
 
 int collisionMax = 10;
 
+float3 spawnCenter;
 
 //variables for bitonic sort
 int block;
@@ -272,6 +273,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
     
     _particles[particleIndex].currentForce = (float3(0, -9.81 * particleMass, 0) - pressure +visc);
     
+    /*
     //collision handling with multiple spheres
     for (int a = 0; a < collisionMax; a++)
     {
@@ -324,7 +326,7 @@ void ComputeForces(uint3 id : SV_DISPATCHTHREADID)
         
     }
     //float dmin = length(xsphere - x(umin));
-    
+    */
     
 
 }
@@ -344,8 +346,8 @@ void Integrate(uint3 id : SV_DiSPATCHTHREADID)
     
     
     
-    float3 topRight = boxSize / 2;
-    float3 bottomLeft = -boxSize / 2;
+    float3 topRight = spawnCenter+ boxSize/2;
+    float3 bottomLeft = spawnCenter-boxSize/2;
     
     //Min Boundary Enforcements
     if (_particles[id.x].position.x - radius < bottomLeft.x)

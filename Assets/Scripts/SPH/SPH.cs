@@ -27,7 +27,7 @@ public class SPH : MonoBehaviour
     public List<GameObject> collisionObjs;
     public int maxCollisionObjects=10;
     public bool showSpheres = true;
-    public Vector3Int numToSpawn = new Vector3Int(16, 16, 16);
+    public Vector3 numToSpawn = new Vector3(16, 16, 16);
 
     //get total num of particles = cubic of the vector3
     public uint totalParticles {
@@ -42,7 +42,7 @@ public class SPH : MonoBehaviour
     [Range(5.0f, 15.0f)] public float y;
     [Range(5.0f, 15.0f)] public float z;
 
-    public Vector3 spawnCenter;
+
     [Range(0.01f,5.0f)]public float particleRadius = 0.1f;
     //add randomness to the spawn pos
     public float spawnJitter = 0.2f;
@@ -88,9 +88,10 @@ public class SPH : MonoBehaviour
     private Vector3[] spherePosList;
     private float[] sphereRadiusList;
 
-
+    
     public Vector3 boxSize = new Vector3(15, 15, 15);
 
+    private Vector3 spawnCenter;
     private void Awake()
     {
         
@@ -221,38 +222,51 @@ public class SPH : MonoBehaviour
 
     private void SpawnParticlesInBox()
     {
-        Vector3 spawnPoint = spawnCenter;
+        spawnCenter = this.transform.position;
+          //  - new Vector3((float)boxSize.x/2,0,(float)boxSize.z/2);
+        
         List<Particle> _particles = new List<Particle>();
 
-        for(int x=0; x< numToSpawn.x; x++)
-        {
-            for(int y=0; y<numToSpawn.y; y++)
-            {
-                for(int z=0; z< numToSpawn.z; z++)
-                {
-                    Vector3 spawnPos = spawnPoint + new Vector3(x * particleRadius * 2, y * particleRadius * 2, z * particleRadius * 2);
-                    spawnPos += Random.onUnitSphere * particleRadius * spawnJitter;
-                    Particle p = new Particle {
-                        position = spawnPos 
-                    };
+        float halfX = boxSize.x / 2;
+        float halfY = boxSize.y / 2;
+        float halfZ = boxSize.z / 2;
 
+        float xUnit = (halfX / numToSpawn.x) * particleRadius;
+        float yUnit = (halfY / numToSpawn.y) * particleRadius;
+        float zUnit = (halfZ / numToSpawn.z) * particleRadius;
+
+
+        for (int x = 0; x < numToSpawn.x; x++)
+        {
+            for (int y = 0; y <numToSpawn.y; y++)
+            {
+                for (int z = 0; z < numToSpawn.z; z++)
+                {
+                    Vector3 spawnPos = spawnCenter + new Vector3(xUnit *x, yUnit*y,zUnit*z);
+
+                    Particle p = new Particle
+                    {
+                        position = spawnPos
+                    };
                     _particles.Add(p);
                 }
             }
         }
 
+
         particles = _particles.ToArray();
+        
     }
 
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.blue;
-        Gizmos.DrawWireCube(Vector3.zero, boxSize);
+        Gizmos.DrawWireCube(this.transform.position, boxSize);
 
         if(!Application.isPlaying)
         {
             Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(spawnCenter, 0.1f);
+            Gizmos.DrawWireSphere(this.transform.position, 0.1f);
         }
     }
 
@@ -300,7 +314,7 @@ public class SPH : MonoBehaviour
         shader.SetFloat("mass2",particleMass * particleMass);
         shader.SetFloat("viscosity", viscosity);
         shader.SetFloat("boundDamping", boundDamping);
-
+        shader.SetVector("spawnCenter", spawnCenter);
         
         for (int i = 0; i < collisionObjs.Count; i++)
         {
@@ -376,7 +390,7 @@ public class SPH : MonoBehaviour
                 particleMesh,
                 0,
                 material,
-                new Bounds(Vector3.zero, boxSize),
+                new Bounds(Vector3.zero, boxSize/2),
                 _argsBuffer,
                 castShadows: UnityEngine.Rendering.ShadowCastingMode.Off
             );
