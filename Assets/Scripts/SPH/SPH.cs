@@ -2,13 +2,18 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 
 
 public class SPH : MonoBehaviour
 {
+    private static readonly int SizeProperty = Shader.PropertyToID("_size");
+    private static readonly int ParticlesBufferProperty = Shader.PropertyToID("_particlesBuffer");
+    private static readonly int DebugColorBufferProperty = Shader.PropertyToID("_debugColorBuffer");
     [System.Serializable]
     [StructLayout(LayoutKind.Sequential, Size = 44)]
     public struct Particle
@@ -63,6 +68,7 @@ public class SPH : MonoBehaviour
     public float particleMass = 1f;
     public float gasConstant = 2f;
     public float restingDensity = 1f;
+    public float pressureMultiplier;
     public float timestep = 0.007f;
 
 
@@ -77,7 +83,10 @@ public class SPH : MonoBehaviour
     public ComputeBuffer _particleIndices;
     public ComputeBuffer _particleCellIndices;
     public ComputeBuffer _cellOffsets;
-
+    public ComputeBuffer _debugColorBuffer;
+    public ComputeBuffer _spatialIndicesBuffer;
+    public ComputeBuffer _spatialOffsetsBuffer;
+    public ComputeBuffer _densitiesBuffer;
 
     private int integrateKernel;
     private int computeForceKernel;
@@ -85,6 +94,8 @@ public class SPH : MonoBehaviour
     private int hashParticleKernel;
     private int bitonicSortKernel;
     private int cellOffsetKernel;
+    private int updateSpatialHashKernel;
+
     private Vector3[] spherePosList;
     private float[] sphereRadiusList;
 
@@ -92,6 +103,8 @@ public class SPH : MonoBehaviour
     public Vector3 boxSize = new Vector3(15, 15, 15);
 
     private Vector3 spawnCenter;
+
+    GPUSort gpuSort;
     private void Awake()
     {
         
@@ -149,8 +162,12 @@ public class SPH : MonoBehaviour
         _sphereRadiusBuffer = new ComputeBuffer(maxCollisionObjects, 4);
         _sphereRadiusBuffer.SetData(sphereRadiusList);
 
+        _debugColorBuffer = new ComputeBuffer((int)totalParticles, 12);
 
-    
+        _spatialOffsetsBuffer = new ComputeBuffer((int)totalParticles, 4);
+        _spatialIndicesBuffer = new ComputeBuffer((int)totalParticles,12);
+
+        _densitiesBuffer = new ComputeBuffer((int)totalParticles, 8);
         //update compute buffers.
         SetupComputeBuffers();
 
@@ -187,38 +204,54 @@ public class SPH : MonoBehaviour
 
         shader.SetFloat("neighborDist", neighborDistance);
 
-        shader.SetBuffer(integrateKernel, "_particles", _particlesBuffer);
-        shader.SetBuffer(computeForceKernel, "_particles", _particlesBuffer);
-        shader.SetBuffer(densityPressureKernel, "_particles", _particlesBuffer);
-        shader.SetBuffer(hashParticleKernel, "_particles", _particlesBuffer);
+        ComputeHelper.SetBuffer(shader, _particlesBuffer, "_particles",
+            integrateKernel, computeForceKernel, densityPressureKernel, hashParticleKernel,
+            updateSpatialHashKernel);
 
-        shader.SetBuffer(computeForceKernel, "_particleIndices",  _particleIndices);
-        shader.SetBuffer(densityPressureKernel, "_particleIndices", _particleIndices);
-        shader.SetBuffer(hashParticleKernel, "_particleIndices",_particleIndices);
-        shader.SetBuffer(bitonicSortKernel, "_particleIndices", _particleIndices);
-        shader.SetBuffer(cellOffsetKernel, "_particleIndices", _particleIndices);
+        ComputeHelper.SetBuffer(shader,_particleIndices,"_particleIndices",
+            computeForceKernel,densityPressureKernel,hashParticleKernel,bitonicSortKernel,
+            cellOffsetKernel);
 
-        shader.SetBuffer(computeForceKernel, "_particleCellIndices", _particleCellIndices);
-        shader.SetBuffer(densityPressureKernel, "_particleCellIndices", _particleCellIndices);
-        shader.SetBuffer(hashParticleKernel, "_particleCellIndices", _particleCellIndices);
-        shader.SetBuffer(bitonicSortKernel, "_particleCellIndices", _particleCellIndices);
-        shader.SetBuffer(cellOffsetKernel, "_particleCellIndices", _particleCellIndices);
+        ComputeHelper.SetBuffer(shader, _particleCellIndices, "_particleCellIndices",
+            computeForceKernel, densityPressureKernel, hashParticleKernel, bitonicSortKernel,
+            cellOffsetKernel);
 
-        shader.SetBuffer(computeForceKernel, "_cellOffsets", _cellOffsets);
-        shader.SetBuffer(densityPressureKernel, "_cellOffsets", _cellOffsets);
-        shader.SetBuffer(hashParticleKernel, "_cellOffsets", _cellOffsets);
+        ComputeHelper.SetBuffer(shader, _cellOffsets, "_cellOffsets",
+            computeForceKernel, densityPressureKernel, hashParticleKernel,cellOffsetKernel);
 
-        shader.SetBuffer(cellOffsetKernel, "_cellOffsets", _cellOffsets);
-
-
+        
 
         shader.SetBuffer(computeForceKernel, "_spherePosList", _spherePosBuffer);
         shader.SetBuffer(computeForceKernel, "_sphereRadiusList", _sphereRadiusBuffer);
 
-     }
+        ComputeHelper.SetBuffer(shader, _debugColorBuffer, "_debugColorBuffer",
+            densityPressureKernel, computeForceKernel,integrateKernel);
 
-   
-    
+        ComputeHelper.SetBuffer(shader, _spatialIndicesBuffer, "_spatialIndices",
+            updateSpatialHashKernel,computeForceKernel);
+        ComputeHelper.SetBuffer(shader, _spatialOffsetsBuffer, "_spatialOffsets",
+            updateSpatialHashKernel,computeForceKernel);
+
+        ComputeHelper.SetBuffer(shader, _densitiesBuffer, "_densities",
+            densityPressureKernel, computeForceKernel);
+
+        gpuSort = new();
+        gpuSort.SetBuffers(_spatialIndicesBuffer, _spatialOffsetsBuffer);
+
+    }
+
+    // Version 3
+    float random(Vector2 p)
+    {
+        Vector2 K1 = new Vector2(
+            (float)23.14069263277926, // e^pi (Gelfond's constant)
+             (float)2.665144142690225 // 2^sqrt(2) (Gelfond–Schneider constant)
+        );
+
+        float value = Mathf.Cos(Vector2.Dot(p, K1) * (float)12345.6789);
+        return (int)value-value;
+    }
+
 
     private void SpawnParticlesInBox()
     {
@@ -270,9 +303,7 @@ public class SPH : MonoBehaviour
         }
     }
 
-    private static readonly int SizeProperty = Shader.PropertyToID("_size");
-    private static readonly int ParticlesBufferProperty = Shader.PropertyToID("_particlesBuffer");
-
+    
     private void SortParticles()
     {
         for(var dim=2; dim <= totalParticles; dim <<=1)
@@ -312,6 +343,7 @@ public class SPH : MonoBehaviour
         
         shader.SetFloat("particleMass", particleMass);
         shader.SetFloat("mass2",particleMass * particleMass);
+        shader.SetFloat("pressureMultiplier", pressureMultiplier);
         shader.SetFloat("viscosity", viscosity);
         shader.SetFloat("boundDamping", boundDamping);
         shader.SetVector("spawnCenter", spawnCenter);
@@ -361,16 +393,19 @@ public class SPH : MonoBehaviour
             {
 
                 shader.SetInt("block", block);
-                shader.Dispatch(bitonicSortKernel, threadGroupX, 1, 1);
+                //shader.Dispatch(bitonicSortKernel, threadGroupX, 1, 1);
             }
         }
 
 
+        ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: updateSpatialHashKernel);
 
-        shader.Dispatch(cellOffsetKernel, threadGroupX, 1, 1);
-        shader.Dispatch(densityPressureKernel, threadGroupX, 1, 1);
-        shader.Dispatch(computeForceKernel, threadGroupX, 1, 1);
-        shader.Dispatch(integrateKernel, threadGroupX, 1, 1);
+        gpuSort.SortAndCalculateOffsets();
+        //shader.Dispatch(cellOffsetKernel, threadGroupX, 1, 1);
+
+        ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: densityPressureKernel);
+        ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: computeForceKernel);
+        ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: integrateKernel);
 
         
 
@@ -383,6 +418,7 @@ public class SPH : MonoBehaviour
         //render the particles
         material.SetFloat(SizeProperty, particleRenderSize);
         material.SetBuffer(ParticlesBufferProperty,_particlesBuffer);
+        material.SetBuffer(DebugColorBufferProperty, _debugColorBuffer);
 
         if(showSpheres)
         {
