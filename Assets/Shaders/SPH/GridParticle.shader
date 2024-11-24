@@ -65,8 +65,8 @@ Shader "Instanced/GridTestParticleShader" {
 				#ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
 					//float dens = _particlesBuffer[unity_InstanceID].pressure;
 				
-					
-					o.Albedo = _debugColorBuffer[unity_InstanceID];
+					o.Albedo = _Color;
+					//o.Albedo = _debugColorBuffer[unity_InstanceID];
 					//o.Metallic = _Metallic;
 					//o.Smoothness = _Glossiness;
 				    o.Alpha = 1;

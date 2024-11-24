@@ -1,16 +1,20 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Rendering;
-
+using System.Runtime.InteropServices;
+using System;
 
 
 public class SPH : MonoBehaviour
 {
+    [StructLayout(LayoutKind.Sequential)]
+    struct FixedString
+    {
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+        public byte[] chars;
+    }
+
+
     private static readonly int SizeProperty = Shader.PropertyToID("_size");
     private static readonly int ParticlesBufferProperty = Shader.PropertyToID("_particlesBuffer");
     private static readonly int DebugColorBufferProperty = Shader.PropertyToID("_debugColorBuffer");
@@ -87,6 +91,7 @@ public class SPH : MonoBehaviour
     public ComputeBuffer _spatialIndicesBuffer;
     public ComputeBuffer _spatialOffsetsBuffer;
     public ComputeBuffer _densitiesBuffer;
+    public ComputeBuffer _debugMessageBuffer;
 
     private int integrateKernel;
     private int computeForceKernel;
@@ -95,6 +100,7 @@ public class SPH : MonoBehaviour
     private int bitonicSortKernel;
     private int cellOffsetKernel;
     private int updateSpatialHashKernel;
+    private int computeViscosityKernel;
 
     private Vector3[] spherePosList;
     private float[] sphereRadiusList;
@@ -168,6 +174,25 @@ public class SPH : MonoBehaviour
         _spatialIndicesBuffer = new ComputeBuffer((int)totalParticles,12);
 
         _densitiesBuffer = new ComputeBuffer((int)totalParticles, 8);
+
+
+        //set up message array
+        int maxStringLength = 32;
+        int bufferSize = 10;
+        FixedString[] stringData = new FixedString[bufferSize];
+
+        //populate the array
+        for(int i=0; i<stringData.Length; i++)
+        {
+            string text = $"String {i}";
+            byte[] encoded = System.Text.Encoding.ASCII.GetBytes(text);
+            Array.Resize(ref encoded, maxStringLength);
+            stringData[i].chars = encoded;
+        }
+
+        _debugMessageBuffer = new ComputeBuffer(bufferSize, Marshal.SizeOf(typeof(FixedString)));
+        
+
         //update compute buffers.
         SetupComputeBuffers();
 
@@ -183,7 +208,8 @@ public class SPH : MonoBehaviour
         hashParticleKernel = shader.FindKernel("HashParticles");
         bitonicSortKernel = shader.FindKernel("BitonicSort");
         cellOffsetKernel = shader.FindKernel("CalculateCellOffsets");
-
+        updateSpatialHashKernel = shader.FindKernel("UpdateSpatialHash");
+        computeViscosityKernel = shader.FindKernel("ComputeViscosity");
        
         shader.SetInt("particleLength", (int)totalParticles);
         shader.SetFloat("particleMass", particleMass);
@@ -206,7 +232,7 @@ public class SPH : MonoBehaviour
 
         ComputeHelper.SetBuffer(shader, _particlesBuffer, "_particles",
             integrateKernel, computeForceKernel, densityPressureKernel, hashParticleKernel,
-            updateSpatialHashKernel);
+            updateSpatialHashKernel,computeViscosityKernel);
 
         ComputeHelper.SetBuffer(shader,_particleIndices,"_particleIndices",
             computeForceKernel,densityPressureKernel,hashParticleKernel,bitonicSortKernel,
@@ -225,16 +251,18 @@ public class SPH : MonoBehaviour
         shader.SetBuffer(computeForceKernel, "_sphereRadiusList", _sphereRadiusBuffer);
 
         ComputeHelper.SetBuffer(shader, _debugColorBuffer, "_debugColorBuffer",
-            densityPressureKernel, computeForceKernel,integrateKernel);
+            densityPressureKernel, computeForceKernel,integrateKernel,updateSpatialHashKernel);
 
         ComputeHelper.SetBuffer(shader, _spatialIndicesBuffer, "_spatialIndices",
-            updateSpatialHashKernel,computeForceKernel);
+            updateSpatialHashKernel,computeForceKernel,densityPressureKernel
+            ,computeViscosityKernel);
         ComputeHelper.SetBuffer(shader, _spatialOffsetsBuffer, "_spatialOffsets",
-            updateSpatialHashKernel,computeForceKernel);
+            updateSpatialHashKernel,computeForceKernel,densityPressureKernel, computeViscosityKernel);
 
         ComputeHelper.SetBuffer(shader, _densitiesBuffer, "_densities",
             densityPressureKernel, computeForceKernel);
 
+        ComputeHelper.SetBuffer(shader, _debugMessageBuffer, "_debugMessages");
         gpuSort = new();
         gpuSort.SetBuffers(_spatialIndicesBuffer, _spatialOffsetsBuffer);
 
@@ -378,8 +406,10 @@ public class SPH : MonoBehaviour
         shader.SetVector("endPoint1",p0);
         shader.SetVector("endPoint2",p1);
         shader.SetFloat("playerRadius", playerObject.transform.localScale.x * 0.5f);
-        
-    
+
+
+        shader.SetMatrix("worldToLocal", this.transform.worldToLocalMatrix);
+        shader.SetMatrix("localToWorld",this.transform.localToWorldMatrix);
 
         int threadGroupX =(int)totalParticles /256;
 
@@ -397,17 +427,19 @@ public class SPH : MonoBehaviour
             }
         }
 
-
+        
         ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: updateSpatialHashKernel);
-
         gpuSort.SortAndCalculateOffsets();
         //shader.Dispatch(cellOffsetKernel, threadGroupX, 1, 1);
 
         ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: densityPressureKernel);
         ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: computeForceKernel);
+        ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: computeViscosityKernel);
         ComputeHelper.Dispatch(shader, _particlesBuffer.count, kernelIndex: integrateKernel);
+        
 
         
+
 
     }
 

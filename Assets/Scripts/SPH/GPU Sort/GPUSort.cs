@@ -11,13 +11,16 @@ public class GPUSort
 
     public GPUSort()
     {
+        Debug.Log("init!");
         sortCompute = ComputeHelper.LoadComputeShader("BitonicMergeSort");
     }
 
     public void SetBuffers(ComputeBuffer indexBuffer, ComputeBuffer offsetBuffer)
     {
+        
         this.indexBuffer = indexBuffer;
 
+        Debug.Log(indexBuffer.count +"/" + offsetBuffer.count);
         sortCompute.SetBuffer(sortKernel, "Entries", indexBuffer);
         ComputeHelper.SetBuffer(sortCompute, offsetBuffer, "Offsets", calculateOffsetsKernel);
         ComputeHelper.SetBuffer(sortCompute, indexBuffer, "Entries", calculateOffsetsKernel);
@@ -50,6 +53,7 @@ public class GPUSort
         }
     }
 
+  
 
     public void SortAndCalculateOffsets()
     {

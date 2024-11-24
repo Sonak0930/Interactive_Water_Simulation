@@ -419,6 +419,7 @@ public static class ComputeHelper
     {
         if (shader == null)
         {
+            Debug.LogError("Failed to load " + name);
             shader = LoadComputeShader(name);
         }
     }

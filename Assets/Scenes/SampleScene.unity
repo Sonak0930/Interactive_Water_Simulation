@@ -283,20 +283,20 @@ MonoBehaviour:
   x: 5
   y: 5
   z: 5
-  particleRadius: 1.2
+  particleRadius: 0.3
   spawnJitter: 0.2
   particleMesh: {fileID: 4711208715938537054, guid: 7952c22a886b37a4f8f826bd811752bb, type: 3}
   particleRenderSize: 8
   material: {fileID: 2100000, guid: 0235b290055d6d643a37b2f841fee191, type: 2}
   shader: {fileID: 7200000, guid: e1859c0f93f9e2b459d57375319220f9, type: 3}
   particles: []
-  boundDamping: -0.5
-  viscosity: 0.005
-  particleMass: 1
+  boundDamping: 0.9
+  viscosity: 0.001
+  particleMass: 10
   gasConstant: 0.1
   restingDensity: 680
   pressureMultiplier: 200
-  timestep: 0.006
+  timestep: 0.000001
   neighborDistance: 1
   boxSize: {x: 20, y: 15, z: 20}
 --- !u!1 &558284830
