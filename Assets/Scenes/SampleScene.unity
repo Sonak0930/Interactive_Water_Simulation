@@ -221,7 +221,7 @@ Transform:
   m_GameObject: {fileID: 125762769}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.13, y: -2.79, z: -5.5500007}
+  m_LocalPosition: {x: -0.13, y: -2.79, z: -38.7}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -253,7 +253,7 @@ Transform:
   m_GameObject: {fileID: 553318307}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 4.31, z: 0}
+  m_LocalPosition: {x: 0, y: 4.31, z: -21.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -278,11 +278,11 @@ MonoBehaviour:
   - {fileID: 1548832898}
   - {fileID: 125762769}
   maxCollisionObjects: 5
-  showSpheres: 1
+  showSpheres: 0
   numToSpawn: {x: 16, y: 8, z: 16}
-  x: 5
-  y: 5
-  z: 5
+  x: 9.8
+  y: 9.83
+  z: 9.98
   particleRadius: 0.3
   spawnJitter: 0.2
   particleMesh: {fileID: 4711208715938537054, guid: 7952c22a886b37a4f8f826bd811752bb, type: 3}
@@ -290,13 +290,13 @@ MonoBehaviour:
   material: {fileID: 2100000, guid: 0235b290055d6d643a37b2f841fee191, type: 2}
   shader: {fileID: 7200000, guid: e1859c0f93f9e2b459d57375319220f9, type: 3}
   particles: []
-  boundDamping: 0.9
-  viscosity: 0.001
-  particleMass: 10
+  boundDamping: 0.8
+  viscosity: 0.01
+  particleMass: 1
   gasConstant: 0.1
-  restingDensity: 680
-  pressureMultiplier: 200
-  timestep: 0.000001
+  restingDensity: 100
+  pressureMultiplier: 50
+  timestep: 0.0003
   neighborDistance: 1
   boxSize: {x: 20, y: 15, z: 20}
 --- !u!1 &558284830
@@ -405,7 +405,7 @@ Transform:
   m_GameObject: {fileID: 558284830}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.2040563, y: -1.0500002, z: -4.5700006}
+  m_LocalPosition: {x: -2.2040563, y: -1.0500002, z: -37.72}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -634,7 +634,7 @@ Transform:
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.2040563, y: -1.0500002, z: -6.580001}
+  m_LocalPosition: {x: -2.2040563, y: -1.0500002, z: -39.730003}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -647,7 +647,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7182cac652d7f6641b7c75b05bb7d010, type: 3}
   m_Name: 
@@ -762,7 +762,7 @@ Transform:
   m_GameObject: {fileID: 989571877}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.01, y: -4.37, z: -4.4300013}
+  m_LocalPosition: {x: -0.01, y: -4.37, z: -37.58}
   m_LocalScale: {x: 14.794001, y: 1.7403334, z: 20.818695}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -870,7 +870,7 @@ Transform:
   m_GameObject: {fileID: 1231325868}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.04, y: -2.79, z: -4.350001}
+  m_LocalPosition: {x: -1.04, y: -2.79, z: -37.500004}
   m_LocalScale: {x: 0.7, y: 0.7, z: 0.7}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -978,7 +978,7 @@ Transform:
   m_GameObject: {fileID: 1548832898}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.48, y: -2.79, z: -4.350001}
+  m_LocalPosition: {x: 1.48, y: -2.79, z: -37.500004}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1086,7 +1086,7 @@ Transform:
   m_GameObject: {fileID: 1805322605}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.17, y: -2.79, z: -5.77}
+  m_LocalPosition: {x: 1.17, y: -2.79, z: -38.920002}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

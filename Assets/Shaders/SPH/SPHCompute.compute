@@ -672,6 +672,7 @@ void Integrate(uint3 id : SV_DiSPATCHTHREADID)
 [numthreads(256, 1, 1)]
 void ComputeViscosity(uint3 id : SV_DispatchThreadID)
 {
+    
     if (id.x >= particleLength)
         return;
 		
