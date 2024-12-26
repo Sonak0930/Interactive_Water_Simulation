@@ -24,10 +24,11 @@ https://github.com/user-attachments/assets/77bb7c16-2862-44c3-b2f3-c393b2e14c58
 
 ## Result
 ### Particle Bounces without ray-marching
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID_HERE/0.jpg)](https://www.youtube.com/watch?v=_G-IBSnm1Ek)
+https://www.youtube.com/watch?v=_G-IBSnm1Ek
+
 ### Particle Bounces with Ray-marching
 (not implemented yet)
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID_HERE/0.jpg)](https://www.youtube.com/watch?v=vFn_bK6T0uU)
+https://www.youtube.com/watch?v=vFn_bK6T0uU
 
 ### Final presentation
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID_HERE/0.jpg)](https://www.youtube.com/watch?v=JRRoLSxkuZk&t=40s)
+https://www.youtube.com/watch?v=JRRoLSxkuZk
